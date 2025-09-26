@@ -1,0 +1,333 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// Ultrasonic sensor pins
+#define T1 18
+#define E1 19
+#define T2 21
+#define E2 22
+#define T3 23
+#define E3 4
+
+// Network credentials
+#define WIFI_SSID "ESP32_AP"
+#define WIFI_PASSWORD "password"
+
+// Motor control pins
+#define ENA 14  // PWM control for Motor 1 (Left) speed
+#define ENB 32  // PWM control for Motor 2 (Right) speed
+#define IN1 27  // Motor 1 control pin 1
+#define IN2 26  // Motor 1 control pin 2
+#define IN3 25  // Motor 2 control pin 1
+#define IN4 33  // Motor 2 control pin 2
+#define ADDITIONAL_IN1 12  // Additional motor Direction 1
+#define ADDITIONAL_EN1 13  // Additional motor Enable
+#define NEW_ENA 35    // PWM control for Motor 3 (New left motor)
+#define NEW_ENB 36    // PWM control for Motor 4 (New right motor)
+#define NEW_IN1 37    // Motor 3 control pin 1 (left motor)
+#define NEW_IN2 38    // Motor 3 control pin 2 (left motor)
+#define NEW_IN3 39    // Motor 4 control pin 1 (right motor)
+#define NEW_IN4 40    // Motor 4 control pin 2 (right motor)
+#define BATT_PIN 34   // ADC pin to read battery voltage
+
+int speed1 = 155;  // Significantly reduced speed setting for Motor 1 (Left)
+int speed2 = 100;  // Significantly reduced speed setting for Motor 2 (Right)
+bool isTaskActive = false;
+String activeTask = "";
+
+WebServer server(80);  // Create a web server object that listens on port 80
+
+void setup() {
+    Serial.begin(115200);  // Start serial communication
+    Serial.println("Starting setup...");
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(T1, OUTPUT);
+    pinMode(E1, INPUT);
+    pinMode(T2, OUTPUT);
+    pinMode(E2, INPUT);
+    pinMode(T3, OUTPUT);
+    pinMode(E3, INPUT);
+
+    setupMotors();
+
+    // Set ESP32 as an access point with custom IP configuration
+    WiFi.softAP(WIFI_SSID, WIFI_PASSWORD);
+    IPAddress ip(192, 168, 1, 2);  // Set the IP address of the access point
+    IPAddress gateway(192, 168, 1, 2);
+    IPAddress subnet(255, 255, 255, 0);
+    WiFi.softAPConfig(ip, gateway, subnet);
+    Serial.print("AP IP address: ");
+    Serial.println(WiFi.softAPIP());
+
+    // Define web server routes
+    server.on("/", handleRoot);
+    server.on("/task1", handleTask1);
+    server.on("/task3", handleTask3);
+    server.on("/task4", handleTask4);
+
+    // Additional motor setup
+    pinMode(ADDITIONAL_IN1, OUTPUT);
+    pinMode(ADDITIONAL_EN1, OUTPUT);
+    pinMode(NEW_IN1, OUTPUT);
+    pinMode(NEW_IN2, OUTPUT);
+    pinMode(NEW_IN3, OUTPUT);
+    pinMode(NEW_IN4, OUTPUT);
+    pinMode(NEW_ENA, OUTPUT);
+    pinMode(NEW_ENB, OUTPUT);
+
+    // Activate all motors on startup
+    digitalWrite(ADDITIONAL_IN1, HIGH);
+    digitalWrite(ADDITIONAL_EN1, HIGH);
+    digitalWrite(NEW_IN1, HIGH);
+    digitalWrite(NEW_IN2, LOW);
+    digitalWrite(NEW_IN3, HIGH);
+    digitalWrite(NEW_IN4, LOW);
+    analogWrite(NEW_ENA, 70);    // Significantly reduced speed for left motor
+    analogWrite(NEW_ENB, 70);    // Significantly reduced speed for right motor
+
+    server.begin();
+    Serial.println("HTTP server started");
+    Serial.println("Setup complete!");
+}
+
+void loop() {
+    server.handleClient();  // Handle incoming client requests
+    if (isTaskActive) {
+        checkObstacle();
+
+        if (activeTask == "CirclePattern") {
+            circlePattern(6.0);  // Run Circle Pattern with default radius
+        } else if (activeTask == "LawnMowerPattern") {
+            lawnMowerPattern();  // Run Lawn Mower Pattern
+        }
+    }
+
+    delay(1000);  // Adjust as needed
+}
+
+void handleRoot() {
+    String html = "<!DOCTYPE html><html><body><h2>ESP32 Rover Control</h2>";
+    html += "<p>Active Task: " + activeTask + "</p>";
+    html += "<p><a href=\"/task1\">Start Circle Pattern</a></p>";
+    html += "<p><a href=\"/task3\">Start Lawn Mower Pattern</a></p>";
+    html += "<p><a href=\"/task4\">Stop Rover</a></p>";
+    html += "</body></html>";
+    server.send(200, "text/html", html);
+}
+
+void handleTask1() {
+    activeTask = "CirclePattern";
+    isTaskActive = true;
+    server.send(200, "text/plain", "Task 1 (Circle Pattern) started.");
+}
+
+void handleTask3() {
+    activeTask = "LawnMowerPattern";
+    isTaskActive = true;
+    server.send(200, "text/plain", "Task 3 (Lawn Mower Pattern) started.");
+}
+
+void handleTask4() {
+    activeTask = "";
+    isTaskActive = false;
+    task4();  // Stop the rover completely
+    server.send(200, "text/plain", "Task 4 executed. Rover stopped.");
+}
+
+void setupMotors() {
+    pinMode(ENA, OUTPUT);
+    pinMode(ENB, OUTPUT);
+    pinMode(IN1, OUTPUT);
+    pinMode(IN2, OUTPUT);
+    pinMode(IN3, OUTPUT);
+    pinMode(IN4, OUTPUT);
+    pinMode(BATT_PIN, INPUT);  // Battery voltage reading pin
+    pinMode(ADDITIONAL_IN1, OUTPUT);
+    pinMode(ADDITIONAL_EN1, OUTPUT);
+    pinMode(NEW_ENA, OUTPUT);
+    pinMode(NEW_ENB, OUTPUT);
+    pinMode(NEW_IN1, OUTPUT);
+    pinMode(NEW_IN2, OUTPUT);
+    pinMode(NEW_IN3, OUTPUT);
+    pinMode(NEW_IN4, OUTPUT);
+
+    // Activate additional motor driver
+    digitalWrite(ADDITIONAL_IN1, HIGH);
+    digitalWrite(ADDITIONAL_EN1, HIGH);
+
+    // Activate new motor driver
+    digitalWrite(NEW_IN1, HIGH);
+    digitalWrite(NEW_IN2, LOW);
+    digitalWrite(NEW_IN3, HIGH);
+    digitalWrite(NEW_IN4, LOW);
+    analogWrite(NEW_ENA, 70);    // Significantly reduced speed for left motor
+    analogWrite(NEW_ENB, 70);    // Significantly reduced speed for right motor
+}
+
+void task4() {
+    Serial.println("Stopping the rover completely...");
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
+    analogWrite(ENA, 0);
+    analogWrite(ENB, 0);
+    digitalWrite(ADDITIONAL_IN1, LOW);  // Turn off additional motor
+    digitalWrite(ADDITIONAL_EN1, LOW);  // Turn off additional motor
+    analogWrite(NEW_ENA, 0);    // Turn off new motors
+    analogWrite(NEW_ENB, 0);
+    Serial.println("Rover stopped.");
+}
+
+void circlePattern(float radius) {
+    Serial.print("Performing circle pattern motion with radius: ");
+        Serial.print(radius);
+    Serial.println(" meters...");
+    if (!isTaskActive) return; // Stop if task is inactive
+
+    float wheelBase = 0.25;  // Distance between the wheels in meters (25 cm)
+    float targetCircumference = 2 * PI * radius;
+    int numberOfSteps = 50;  // Number of segments to approximate the circle
+    float segmentLength = targetCircumference / numberOfSteps;
+
+    for (int i = 0; i < numberOfSteps; i++) {
+        float innerSpeed = speed1 * (radius - (wheelBase / 2)) / radius;
+        float outerSpeed = speed1;
+
+        digitalWrite(IN1, HIGH);
+        digitalWrite(IN2, LOW);
+        digitalWrite(IN3, HIGH);
+        digitalWrite(IN4, LOW);
+        analogWrite(ENA, innerSpeed);
+        analogWrite(ENB, outerSpeed);
+
+        delay((segmentLength / outerSpeed) * 1000);
+
+        checkObstacle();
+    }
+
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
+    analogWrite(NEW_ENA, 0);  // Turn off new motors
+    analogWrite(NEW_ENB, 0);  // Turn off new motors
+    Serial.println("Circle pattern completed.");
+}
+
+void lawnMowerPattern() {
+    Serial.println("Performing lawn mower pattern motion...");
+
+    for (int pass = 0; pass < 5; pass++) {
+        if (!isTaskActive) return; // Stop if task is inactive
+
+        digitalWrite(IN1, HIGH);
+        digitalWrite(IN2, LOW);
+        digitalWrite(IN3, HIGH);
+        digitalWrite(IN4, LOW);
+        analogWrite(ENA, speed1);
+        analogWrite(ENB, speed1);
+        Serial.println("Moving forward...");
+        delay(3000);
+
+        checkObstacle();
+
+        if (pass % 2 == 0) {
+            digitalWrite(IN1, HIGH);
+            digitalWrite(IN2, LOW);
+            digitalWrite(IN3, LOW);
+            digitalWrite(IN4, HIGH);
+            analogWrite(ENA, speed1);
+            analogWrite(ENB, speed2);
+            Serial.println("Turning right...");
+        } else {
+            digitalWrite(IN1, LOW);
+            digitalWrite(IN2, HIGH);
+            digitalWrite(IN3, HIGH);
+            digitalWrite(IN4, LOW);
+            analogWrite(ENA, speed2);
+            analogWrite(ENB, speed1);
+            Serial.println("Turning left...");
+        }
+
+        delay(1000);
+    }
+
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
+    analogWrite(NEW_ENA, 0);  // Turn off new motors
+    analogWrite(NEW_ENB, 0);  // Turn off new motors
+    Serial.println("Lawn mower pattern completed.");
+}
+
+void checkObstacle() {
+    long distance1 = readDistance(T1, E1);
+    long distance2 = readDistance(T2, E2);
+    long distance3 = readDistance(T3, E3);
+
+    Serial.print("Distances - Ultra1: ");
+    Serial.print(distance1);
+    Serial.print(" cm, Ultra2: ");
+    Serial.print(distance2);
+    Serial.print(" cm, Ultra3: ");
+    Serial.println(distance3);
+
+    if (distance1 > 0 && distance1 < 17) {
+        Serial.println("Obstacle detected on the left. Turning right...");
+        digitalWrite(IN1, LOW);
+        digitalWrite(IN2, HIGH);
+        digitalWrite(IN3, HIGH);
+        digitalWrite(IN4, LOW);
+        analogWrite(ENA, speed1);
+        analogWrite(ENB, speed2);
+        digitalWrite(ADDITIONAL_IN1, HIGH);
+        digitalWrite(ADDITIONAL_EN1, HIGH);  // Run additional motor
+        analogWrite(NEW_ENA, 70);  // Run new motors
+        analogWrite(NEW_ENB, 70);
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(500);
+        digitalWrite(LED_BUILTIN, HIGH);
+    } else if (distance2 > 0 and distance2 < 17) {
+        Serial.println("Obstacle detected in the center. Stopping...");
+        task4();
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(500);
+        digitalWrite(LED_BUILTIN, HIGH);
+    } else if (distance3 > 0 && distance3 < 17) {
+        Serial.println("Obstacle detected on the right. Turning left...");
+        digitalWrite(IN1, HIGH);
+        digitalWrite(IN2, LOW);
+        digitalWrite(IN3, LOW);
+        digitalWrite(IN4, HIGH);
+        analogWrite(ENA, speed2);
+        analogWrite(ENB, speed1);
+        digitalWrite(ADDITIONAL_IN1, HIGH);
+        digitalWrite(ADDITIONAL_EN1, HIGH);  // Run additional motor
+        analogWrite(NEW_ENA, 70);  // Run new motors
+        analogWrite(NEW_ENB, 70);
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(500);
+        digitalWrite(LED_BUILTIN, HIGH);
+    }
+}
+
+long readDistance(int trigPin, int echoPin) {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    long duration = pulseIn(echoPin, HIGH, 30000);
+
+    if (duration == 0 or duration > 30000) {
+        return 999;
+    }
+
+    long distance = (duration / 2) / 29.1;
+    return distance;
+}
