@@ -143,7 +143,7 @@ All motion patterns are **interruptible and reactive** to sensor input.
 # 🌐 WEB-BASED CONTROL INTERFACE
 
 <p align="center">
-  <img src="docs/images/web_interface.png" width="500" alt="Web Interface">
+  <img src="docs/images/web_interface.jpg" width="500" alt="Web Interface">
 </p>
 
 - ESP32 operates as a **standalone Wi-Fi access point**  
