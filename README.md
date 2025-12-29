@@ -52,7 +52,7 @@ The system is powered by a **12 V onboard battery**, supplying sufficient torq
 # ⚙️ MECHANICAL ARCHITECTURE
 
 <p align="center">
-  <img src="docs/images/mechanical_layout.png" width="650" alt="Mechanical Layout">
+  
 </p>
 
 ## 🔁 MULTI-STAGE CLEANING PIPELINE
@@ -90,7 +90,7 @@ This architecture ensures reliable operation under varying mechanical loads whil
 # 🔌 ELECTRICAL & CONTROL SYSTEM
 
 <p align="center">
-  <img src="docs/images/electronics_layout.jpg" width="650" alt="Electronics Layout">
+  
 </p>
 
 ## CORE COMPONENTS
