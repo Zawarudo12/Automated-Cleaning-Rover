@@ -158,3 +158,50 @@ No external router or mobile application required.
 # 📂 SOFTWARE STRUCTURE
 
 
+The firmware is modular:
+
+- Task management  
+- Motor control and speed regulation  
+- Sensor processing and obstacle detection  
+- HTTP server for web-based control  
+
+---
+
+## 🧪 TESTING & VALIDATION
+
+- Verified obstacle detection for all three sensor directions  
+- Continuous operation testing of all cleaning motors  
+- Autonomous pattern execution on real surfaces  
+- Stable ESP32 operation under 12 V motor load conditions  
+- Web interface tested on mobile and desktop browsers  
+
+---
+
+## 🔮 FUTURE IMPROVEMENTS
+
+- Battery telemetry and low-voltage protection  
+- Encoder-based closed-loop motion control  
+- Coverage optimization algorithms  
+- SLAM-based navigation and mapping  
+
+---
+
+## 👥 TEAM
+
+This project was **designed, built, and tested collaboratively** by an **S4 ECE student team**, covering:
+
+- Mechanical design and integration  
+- Embedded firmware development  
+- Electronics and wiring  
+- System testing and validation  
+
+*(Add team member names here)*
+
+---
+
+## 📜 LICENSE
+
+Educational open-source project.
+
+
+
