@@ -190,12 +190,12 @@ The firmware is modular:
 
 This project was **designed, built, and tested collaboratively** by an **S4 ECE student team**, covering:
 
-- Mechanical design and integration  
-- Embedded firmware development  
-- Electronics and wiring  
-- System testing and validation  
-
-*(Add team member names here)*
+- Sreeram Raman  
+- Alan Babu 
+- Abin Stainslaus  
+- Abraham Joseph
+- Abhichandra TV
+- Alfred Anto
 
 ---
 
